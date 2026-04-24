@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>双人私聊室 · GoEasy 调试版</title>
+  <!-- 引入 GoEasy SDK -->
+  <script src="https://cdn.goeasy.io/goeasy-2.4.3.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    }
+    body {
+      background: #f5f7fb;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+    .chat-container {
+      width: 100%;
+      max-width: 700px;
+      height: 90vh;
+      min-height: 600px;
+      background: white;
+      border-radius: 28px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 6px 12px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+    .chat-header {
+      padding: 16px 20px;
+      background: white;
+      border-bottom: 1px solid #f0f2f6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .room-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .room-badge {
+      background: #eef2ff;
+      color: #4f46e5;
+      padding: 6px 14px;
+      border-radius: 40px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .online-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 10px;
+      background: #10b981;
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    }
+    .user-controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .nickname-input, .room-input {
+      border: 1px solid #e2e8f0;
+      border-radius: 30px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      background: white;
+      outline: none;
+      transition: border 0.15s;
+      width: 120px;
+    }
+    .nickname-input:focus, .room-input:focus {
+      border-color: #4f46e5;
+    }
+    .btn {
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 40px;
+      padding: 8px 18px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 6px rgba(79, 70, 229, 0.15);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .btn:hover {
+      background: #4338ca;
+    }
+    .btn-outline {
+      background: white;
+      color: #1e293b;
+      box-shadow: none;
+      border: 1px solid #e2e8f0;
+    }
+    .btn-outline:hover {
+      background: #f8fafc;
+    }
+    .btn-clear {
+      background: #f1f5f9;
+      color: #475569;
+      box-shadow: none;
+    }
+    .btn-clear:hover {
+      background: #e2e8f0;
+    }
+    .messages-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px;
+      background: #fafbff;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scroll-behavior: smooth;
+    }
+    .message-row {
+      display: flex;
+      flex-direction: column;
+    }
+    .message-meta {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 4px;
+      padding: 0 8px;
+    }
+    .message-sender {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #1e293b;
+    }
+    .message-time {
+      font-size: 0.7rem;
+      color: #64748b;
+    }
+    .message-bubble {
+      max-width: 80%;
+      padding: 10px 16px;
+      border-radius: 22px;
+      word-break: break-word;
+      background: white;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+      border: 1px solid #edf2f7;
+      line-height: 1.5;
+      font-size: 0.95rem;
+      color: #0f172a;
+    }
+    .message-row.self {
+      align-items: flex-end;
+    }
+    .message-row.self .message-bubble {
+      background: #4f46e5;
+      color: white;
+      border: none;
+    }
+    .message-row.self .message-sender {
+      color: #4f46e5;
+    }
+    .message-image {
+      max-width: 240px;
+      max-height: 240px;
+      border-radius: 18px;
+      margin-top: 6px;
+      border: 1px solid rgba(0,0,0,0.05);
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .message-image:hover {
+      transform: scale(1.02);
+    }
+    .system-message {
+      text-align: center;
+      color: #64748b;
+      font-size: 0.8rem;
+      margin: 8px 0;
+    }
+    .chat-footer {
+      padding: 14px 18px;
+      background: white;
+      border-top: 1px solid #f0f2f6;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .input-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      background: #f8fafc;
+      border-radius: 40px;
+      padding: 4px 6px 4px 18px;
+      border: 1px solid #e2e8f0;
+      transition: border 0.15s;
+    }
+    .input-wrapper:focus-within {
+      border-color: #4f46e5;
+      background: white;
+    }
+    .message-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 12px 6px 12px 0;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    .photo-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 10px;
+      cursor: pointer;
+      color: #64748b;
+      border-radius: 40px;
+      transition: background 0.15s;
+    }
+    .photo-label:hover {
+      background: #eef2ff;
+      color: #4f46e5;
+    }
+    .photo-label svg {
+      width: 24px;
+      height: 24px;
+    }
+    #imageInput {
+      display: none;
+    }
+    .send-btn {
+      background: #4f46e5;
+      border: none;
+      border-radius: 40px;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: 0.15s;
+      color: white;
+      box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
+    }
+    .send-btn:hover {
+      background: #4338ca;
+    }
+    .send-btn svg {
+      width: 22px;
+      height: 22px;
+    }
+    .empty-state {
+      text-align: center;
+      color: #94a3b8;
+      margin-top: 40px;
+    }
+    .status-indicator {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-left: 8px;
+    }
+    @media (max-width: 500px) {
+      .chat-container { height: 95vh; }
+      .nickname-input, .room-input { width: 100px; }
+    }
+  </style>
+</head>
+<body>
+<div class="chat-container">
+  <div class="chat-header">
+    <div class="room-info">
+      <div class="room-badge">
+        <span class="online-dot" id="connectionDot"></span>
+        <span id="currentRoomDisplay">私聊房间</span>
+      </div>
+      <span class="status-indicator" id="connectionStatus">连接中...</span>
+    </div>
+    <div class="user-controls">
+      <input type="text" id="nicknameInput" class="nickname-input" placeholder="你的名字" maxlength="16" value="我">
+      <input type="text" id="roomInput" class="room-input" placeholder="房间号" maxlength="20" value="cozy-room">
+      <button class="btn btn-outline" id="joinRoomBtn" title="加入房间">🚪 加入</button>
+      <button class="btn btn-clear" id="clearStorageBtn" title="清除本地聊天记录">🧹 清记录</button>
+      <button class="btn btn-outline" id="reconnectBtn" title="手动重连" style="font-size:0.8rem;">🔄</button>
+    </div>
+  </div>
+
+  <div class="messages-area" id="messagesArea">
+    <div class="empty-state">
+      ✨ 输入昵称和房间号，点击「加入」开始私聊<br>
+      <span style="font-size:0.8rem;">不同城市的朋友也能实时聊天（GoEasy 国内节点）</span>
+    </div>
+  </div>
+
+  <div class="chat-footer">
+    <div class="input-wrapper">
+      <input type="text" id="messageInput" class="message-input" placeholder="输入消息..." autocomplete="off" />
+      <label class="photo-label" for="imageInput" title="发送照片">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+      </label>
+      <input type="file" id="imageInput" accept="image/png, image/jpeg, image/gif, image/webp">
+    </div>
+    <button class="send-btn" id="sendBtn" title="发送消息">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+  (function(){
+    "use strict";
+
+    // ========== GoEasy 配置（已使用你的 Common Key） ==========
+    const GOEASY_APP_KEY = 'BC-abfea97250774c239cbee424d1c4d18d';
+    // 华东节点 hangzhou.goeasy.io，如果你的 key 是新加坡区域则改成 singapore.goeasy.io
+    const GOEASY_HOST = 'hangzhou.goeasy.io';
+    // ===========================================================
+
+    const STORAGE_KEY_PREFIX = 'chat_goeasy_debug_';
+    let currentUser = { nickname: '我', room: 'cozy-room' };
+    let messages = [];
+    let goEasy = null;
+    let isConnected = false;
+    let subscribedChannel = null;
+
+    const messagesArea = document.getElementById('messagesArea');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const nicknameInput = document.getElementById('nicknameInput');
+    const roomInput = document.getElementById('roomInput');
+    const joinRoomBtn = document.getElementById('joinRoomBtn');
+    const currentRoomDisplay = document.getElementById('currentRoomDisplay');
+    const imageInput = document.getElementById('imageInput');
+    const clearStorageBtn = document.getElementById('clearStorageBtn');
+    const reconnectBtn = document.getElementById('reconnectBtn');
+    const connectionDot = document.getElementById('connectionDot');
+    const connectionStatus = document.getElementById('connectionStatus');
+
+    function escapeHtml(str) {
+      if (str == null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+    function getStorageKey(room) { return STORAGE_KEY_PREFIX + room.trim(); }
+
+    function loadMessagesFromStorage(room) {
+      const key = getStorageKey(room);
+      try {
+        const stored = localStorage.getItem(key);
+        if (!stored) { messages = []; return; }
+        const parsed = JSON.parse(stored);
+        messages = Array.isArray(parsed) ? parsed.filter(i => i && i.id && i.content !== undefined) : [];
+      } catch (e) { messages = []; localStorage.removeItem(key); }
+    }
+
+    function saveMessagesToStorage() {
+      const key = getStorageKey(currentUser.room);
+      try { localStorage.setItem(key, JSON.stringify(messages)); } catch (e) {}
+    }
+
+    function addMessage(messageData, skipSave) {
+      const clean = {
+        id: messageData.id || (Date.now() + '-' + Math.random().toString(36)),
+        sender: String(messageData.sender || '匿名').substring(0,30),
+        content: String(messageData.content || ''),
+        type: (messageData.type === 'image' || messageData.type === 'system') ? messageData.type : 'text',
+        timestamp: messageData.timestamp || Date.now(),
+        text: messageData.text ? String(messageData.text) : undefined
+      };
+      messages.push(clean);
+      if (messages.length > 500) messages = messages.slice(-500);
+      if (!skipSave) saveMessagesToStorage();
+      renderMessages();
+    }
+
+    function formatTime(t) {
+      const d = new Date(t);
+      return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+    }
+
+    function renderMessages() {
+      if (!messagesArea) return;
+      if (messages.length === 0) {
+        messagesArea.innerHTML = '<div class="empty-state">💬 还没有消息，说点什么吧～</div>';
+        return;
+      }
+      let html = '';
+      for (const m of messages) {
+        const isSelf = m.sender === currentUser.nickname;
+        const timeStr = formatTime(m.timestamp);
+        if (m.type === 'system') {
+          html += `<div class="system-message">${escapeHtml(m.content)}</div>`;
+          continue;
+        }
+        html += `<div class="message-row ${isSelf ? 'self' : ''}">`;
+        html += `<div class="message-meta"><span class="message-sender">${escapeHtml(m.sender)}</span><span class="message-time">${timeStr}</span></div>`;
+        if (m.type === 'image') {
+          html += `<div class="message-bubble"><img src="${escapeHtml(m.content)}" class="message-image" alt="聊天图片" loading="lazy" onclick="window.open(this.src)"/>`;
+          if (m.text) html += `<div style="margin-top:6px;">${escapeHtml(m.text)}</div>`;
+          html += `</div>`;
+        } else {
+          html += `<div class="message-bubble">${escapeHtml(m.content)}</div>`;
+        }
+        html += `</div>`;
+      }
+      messagesArea.innerHTML = html;
+      messagesArea.scrollTop = messagesArea.scrollHeight;
+    }
+
+    function updateConnectionUI() {
+      if (isConnected) {
+        connectionDot.style.background = '#10b981';
+        connectionDot.style.boxShadow = '0 0 0 2px rgba(16, 185, 129, 0.2)';
+        connectionStatus.textContent = '已连接';
+        connectionStatus.style.color = '#10b981';
+      } else {
+        connectionDot.style.background = '#ef4444';
+        connectionDot.style.boxShadow = '0 0 0 2px rgba(239, 68, 68, 0.2)';
+        connectionStatus.textContent = '未连接';
+        connectionStatus.style.color = '#ef4444';
+      }
+    }
+
+    function addSystemMessage(text) {
+      addMessage({ id:'sys-'+Date.now(), sender:'系统', content:text, type:'system', timestamp:Date.now() });
+    }
+
+    function subscribeToRoom(room) {
+      if (!goEasy || !isConnected) return;
+      if (subscribedChannel) {
+        goEasy.unsubscribe({ channel: subscribedChannel });
+        subscribedChannel = null;
+      }
+      if (!room) return;
+      goEasy.subscribe({
+        channel: room,
+        onMessage: function(message) {
+          try {
+            const data = JSON.parse(message.content);
+            if (data && data.id) {
+              const exists = messages.some(m => m.id === data.id);
+              if (!exists) addMessage(data);
+            }
+          } catch (e) {
+            addMessage({
+              id: Date.now()+'-'+Math.random().toString(36),
+              sender:'未知', content:message.content, type:'text', timestamp:Date.now()
+            });
+          }
+        }
+      });
+      subscribedChannel = room;
+    }
+
+    function connectGoEasy() {
+      if (goEasy) {
+        goEasy.disconnect();
+      }
+      goEasy = GoEasy.getInstance({
+        host: GOEASY_HOST,
+        appkey: GOEASY_APP_KEY
+      });
+
+      goEasy.connect({
+        onSuccess: function() {
+          isConnected = true;
+          updateConnectionUI();
+          addSystemMessage('🌐 已连接到聊天服务器（GoEasy）');
+          subscribeToRoom(currentUser.room);
+        },
+        onFailed: function(error) {
+          isConnected = false;
+          updateConnectionUI();
+          // --- 调试：弹出错误详情 ---
+          var errMsg = '❌ 连接失败：\n\n';
+          errMsg += '错误码：' + error.code + '\n';
+          errMsg += '错误详情：' + error.content + '\n\n';
+          errMsg += '【自查步骤】\n';
+          errMsg += '1. 确认在 GoEasy 控制台创建的是“免费应用”\n';
+          errMsg += '2. 确认复制的 Key 是 Common Key，开头为 BC-\n';
+          errMsg += '3. 确认应用区域与代码中的 host 一致（杭州填 hangzhou.goeasy.io）\n';
+          errMsg += '4. 免费 key 无需 OTP，代码保持空即可';
+          alert(errMsg);
+          // 同时在消息区显示错误码
+          addSystemMessage('❌ 连接失败: 错误码=' + error.code + ' | ' + error.content);
+        },
+        onProgress: function(attempts) {
+          addSystemMessage('⏳ 正在重试连接 (第' + attempts + '次)...');
+        }
+      });
+    }
+
+    function sendMessage(content, type, extra) {
+      if (!content && type !== 'image') return;
+      if (!currentUser.nickname.trim()) return;
+      const msgObj = {
+        id: Date.now() + '-' + Math.random().toString(36),
+        sender: currentUser.nickname,
+        content: content,
+        type: type || 'text',
+        timestamp: Date.now(),
+        ...extra
+      };
+      addMessage(msgObj);
+      if (goEasy && isConnected && subscribedChannel) {
+        goEasy.publish({
+          channel: subscribedChannel,
+          message: JSON.stringify(msgObj)
+        });
+      } else {
+        addSystemMessage('⚠️ 未连接到服务器，消息无法发送给对方');
+      }
+    }
+
+    function handleImageSend(file) {
+      if (!file || !file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const textNote = messageInput.value.trim();
+        sendMessage(e.target.result, 'image', { text: textNote || '' });
+        if (textNote) messageInput.value = '';
+        addSystemMessage('📸 你发送了一张照片');
+      };
+      reader.readAsDataURL(file);
+      imageInput.value = '';
+    }
+
+    function joinRoom(newNickname, newRoom) {
+      newNickname = newNickname.trim();
+      newRoom = newRoom.trim();
+      if (!newNickname || !newRoom) return;
+      currentUser.nickname = newNickname;
+      currentUser.room = newRoom;
+      nicknameInput.value = newNickname;
+      roomInput.value = newRoom;
+      currentRoomDisplay.textContent = newRoom;
+      loadMessagesFromStorage(newRoom);
+      addSystemMessage('📌 进入房间 「' + newRoom + '」');
+      renderMessages();
+      if (isConnected) subscribeToRoom(newRoom);
+    }
+
+    joinRoomBtn.addEventListener('click', () => joinRoom(nicknameInput.value, roomInput.value));
+    sendBtn.addEventListener('click', () => {
+      const t = messageInput.value.trim();
+      if (!t) return;
+      sendMessage(t, 'text');
+      messageInput.value = '';
+    });
+    messageInput.addEventListener('keypress', e => { if (e.key==='Enter') { e.preventDefault(); sendBtn.click(); } });
+    imageInput.addEventListener('change', e => { if (e.target.files[0]) handleImageSend(e.target.files[0]); });
+    clearStorageBtn.addEventListener('click', () => {
+      if (confirm('确定清除本房间记录？')) {
+        messages = [];
+        saveMessagesToStorage();
+        renderMessages();
+        addSystemMessage('🧹 聊天记录已清空');
+      }
+    });
+    reconnectBtn.addEventListener('click', () => { addSystemMessage('🔄 重新连接...'); connectGoEasy(); });
+
+    // 启动
+    (function init() {
+      const defaultNick = nicknameInput.value.trim() || '我';
+      const defaultRoom = roomInput.value.trim() || 'cozy-room';
+      currentUser.nickname = defaultNick;
+      currentUser.room = defaultRoom;
+      currentRoomDisplay.textContent = defaultRoom;
+      loadMessagesFromStorage(defaultRoom);
+      renderMessages();
+      updateConnectionUI();
+      connectGoEasy();
+      if (messages.length === 0) {
+        addSystemMessage('✨ 欢迎来到「' + defaultRoom + '」(调试模式已开启)');
+      }
+    })();
+  })();
+</script>
+</body>
+</html>
